@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const MODEL = 'llama-3.1-8b-instant';
+const MODEL = 'qwen/qwen3-32b';
 
 export async function POST(req) {
   try {
