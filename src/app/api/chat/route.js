@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const MODEL = 'qwen/qwen3-32b';
+const MODEL = "openai/gpt-oss-20b";
 
 export async function POST(req) {
   try {
