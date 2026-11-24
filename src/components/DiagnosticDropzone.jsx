@@ -8,6 +8,7 @@ export default function DiagnosticDropzone() {
   const [treeName, setTreeName] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [retake, setRetake] = useState(null);
 
   const handleDrop = (e) => {
     e.preventDefault();
@@ -21,7 +22,7 @@ export default function DiagnosticDropzone() {
       handleFileSelection(e.target.files[0]);
     }
   };
-
+  
   const handleFileSelection = (file) => {
     setSelectedFile(file);
     setSelectedImage(URL.createObjectURL(file));
@@ -43,22 +44,50 @@ export default function DiagnosticDropzone() {
       const data = await response.json();
 
       if (response.ok) {
-        const diagnosticResult = {
-          treeName: treeName.trim() || 'ไม่ระบุชื่อต้น',
-          date: new Date().toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }),
-          name: data.disease,
-          confidence: data.confidence,
-          advice: data.advice
-        };
-        setResult(diagnosticResult);
+        const raw = parseFloat(data.confidence);
 
-        // บันทึกลง LocalStorage เพื่อส่งต่อให้ตารางประวัติด้านล่างแสดงผลจริง
-        const existingHistory = JSON.parse(localStorage.getItem('durian_history') || '[]');
-        localStorage.setItem('durian_history', JSON.stringify([diagnosticResult, ...existingHistory]));
-        
-        // แจ้งเตือนให้คอมโพเนนต์อื่นรับทราบว่ามีข้อมูลใหม่
-        window.dispatchEvent(new Event('historyUpdated'));
-      } else {
+  const confidencePct = raw <= 1 ? raw * 100 : raw;
+
+
+  // ต่ำกว่า 50%: ให้ถ่ายใหม่ และไม่บันทึกประวัติ
+
+  if (confidencePct < 50) {
+
+    setResult(null);
+
+    setRetake(`ความมั่นใจของ AI ต่ำ (${confidencePct.toFixed(1)}%) กรุณาถ่ายรูปใบทุเรียนใหม่ให้ชัดเจนขึ้น`);
+
+    return;
+
+  }
+
+
+  const diagnosticResult = {
+
+    treeName: treeName.trim() || 'ไม่ระบุชื่อต้น',
+
+    date: new Date().toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }),
+
+    // 50-70%: ขึ้น "คาดว่าเป็น"
+
+    name: confidencePct < 70 ? `คาดว่าเป็น ${data.disease}` : data.disease,
+
+    confidence: data.confidence,
+
+    advice: data.advice
+
+  };
+
+  setResult(diagnosticResult);
+
+
+  const existingHistory = JSON.parse(localStorage.getItem('durian_history') || '[]');
+
+  localStorage.setItem('durian_history', JSON.stringify([diagnosticResult, ...existingHistory]));
+
+  window.dispatchEvent(new Event('historyUpdated'));
+
+} else {
         alert('เกิดข้อผิดพลาดจากเซิร์ฟเวอร์ AI: ' + data.error);
       }
     } catch (error) {
