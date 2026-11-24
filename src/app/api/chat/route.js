@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 
+const MODEL = 'llama-3.3-70b-versatile';
+
 export async function POST(req) {
   try {
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json({ reply: 'ยังไม่ได้ตั้งค่า GROQ_API_KEY บนเซิร์ฟเวอร์' });
+    }
     const { message } = await req.json();
-
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -11,26 +15,22 @@ export async function POST(req) {
         'Authorization': `Bearer ${process.env.GROQ_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: MODEL,
         messages: [
-          { role: 'system', content: 'คุณคือผู้เชี่ยวชาญด้านการเกษตรและโรคทุเรียน คอยให้คำแนะนำที่เป็นประโยชน์ สั้นกระชับ และเข้าใจง่ายสำหรับเกษตรกรไทย' },
+          { role: 'system', content: 'คุณคือผู้เชี่ยวชาญด้านโรคทุเรียน ตอบสั้น กระชับ เข้าใจง่ายสำหรับเกษตรกรไทย' },
           { role: 'user', content: message }
         ],
         temperature: 0.7
       })
     });
-
     const data = await response.json();
-    
     if (!response.ok) {
-      throw new Error(data.error?.message || 'Failed to fetch from Groq');
+      console.error('Groq error:', data);
+      return NextResponse.json({ reply: `Groq ตอบกลับผิดพลาด: ${data.error?.message || response.status}` });
     }
-
-    const reply = data.choices[0].message.content;
-    return NextResponse.json({ reply });
-
+    return NextResponse.json({ reply: data.choices[0].message.content, model: MODEL });
   } catch (error) {
     console.error('Chat Error:', error);
-    return NextResponse.json({ reply: 'ขออภัยครับ ระบบ AI ขัดข้องชั่วคราว ลองใหม่อีกครั้งนะครับ' }, { status: 500 });
+    return NextResponse.json({ reply: `ระบบขัดข้อง: ${error.message}` });
   }
 }
